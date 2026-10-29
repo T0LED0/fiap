@@ -1,0 +1,156 @@
+# =============================================================================
+# Roteamento de Entrada Híbrido: Traefik Proxy + Kubernetes Gateway API + Ingress
+# =============================================================================
+# Nota Arquitetural: O antigo NGINX Ingress Controller (ingress-nginx) foi
+# descontinuado pela comunidade Kubernetes em favor da Gateway API.
+# Utilizamos o Traefik Controller operando de forma híbrida:
+#   1. HTTPRoute (Kubernetes Gateway API v1) — padrão moderno oficial da CNCF
+#   2. Ingress (networking.k8s.io/v1, class: traefik) — compatibilidade com scripts e edital
+# =============================================================================
+apiVersion: gateway.networking.k8s.io/v1
+kind: HTTPRoute
+metadata:
+  name: togglemaster-httproute
+  namespace: togglemaster
+spec:
+  parentRefs:
+    - name: traefik-gateway
+      namespace: traefik
+  rules:
+    - matches:
+        - path:
+            type: PathPrefix
+            value: /admin/keys
+        - path:
+            type: PathPrefix
+            value: /validate
+      backendRefs:
+        - name: auth-service
+          port: 80
+    - matches:
+        - path:
+            type: PathPrefix
+            value: /auth
+      filters:
+        - type: URLRewrite
+          urlRewrite:
+            path:
+              type: ReplacePrefixMatch
+              replacePrefixMatch: /admin
+      backendRefs:
+        - name: auth-service
+          port: 80
+    - matches:
+        - path:
+            type: PathPrefix
+            value: /flags
+      backendRefs:
+        - name: flag-service
+          port: 80
+    - matches:
+        - path:
+            type: PathPrefix
+            value: /rules
+      backendRefs:
+        - name: targeting-service
+          port: 80
+    - matches:
+        - path:
+            type: PathPrefix
+            value: /evaluate
+      backendRefs:
+        - name: evaluation-service
+          port: 80
+    - matches:
+        - path:
+            type: PathPrefix
+            value: /analytics
+      backendRefs:
+        - name: analytics-service
+          port: 80
+---
+apiVersion: traefik.io/v1alpha1
+kind: Middleware
+metadata:
+  name: auth-rewrite
+  namespace: togglemaster
+spec:
+  replacePathRegex:
+    regex: ^/auth/?(.*)
+    replacement: /admin/$1
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: togglemaster-ingress
+  namespace: togglemaster
+  annotations:
+    traefik.ingress.kubernetes.io/router.entrypoints: web
+spec:
+  ingressClassName: traefik
+  rules:
+    - http:
+        paths:
+          - path: /admin/keys
+            pathType: Prefix
+            backend:
+              service:
+                name: auth-service
+                port:
+                  number: 80
+          - path: /validate
+            pathType: Prefix
+            backend:
+              service:
+                name: auth-service
+                port:
+                  number: 80
+          - path: /flags
+            pathType: Prefix
+            backend:
+              service:
+                name: flag-service
+                port:
+                  number: 80
+          - path: /rules
+            pathType: Prefix
+            backend:
+              service:
+                name: targeting-service
+                port:
+                  number: 80
+          - path: /evaluate
+            pathType: Prefix
+            backend:
+              service:
+                name: evaluation-service
+                port:
+                  number: 80
+          - path: /analytics
+            pathType: Prefix
+            backend:
+              service:
+                name: analytics-service
+                port:
+                  number: 80
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: togglemaster-auth-rewrite-ingress
+  namespace: togglemaster
+  annotations:
+    traefik.ingress.kubernetes.io/router.entrypoints: web
+    traefik.ingress.kubernetes.io/router.middlewares: togglemaster-auth-rewrite@kubernetescrd
+spec:
+  ingressClassName: traefik
+  rules:
+    - http:
+        paths:
+          - path: /auth
+            pathType: Prefix
+            backend:
+              service:
+                name: auth-service
+                port:
+                  number: 80

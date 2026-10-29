@@ -1,0 +1,248 @@
+name: togglemaster
+
+networks:
+  togglemaster-net:
+    driver: bridge
+
+volumes:
+  auth_db_data:
+  flags_targeting_db_data:
+  redis_data:
+  floci_data:
+
+services:
+  # ==========================================
+  # CAMADA DE BANCOS DE DADOS LOCAIS (4 DATA STORES)
+  # ==========================================
+
+  # 1. Banco PostgreSQL dedicado para autenticação (auth_db)
+  auth-db:
+    image: postgres:15.19-alpine
+    container_name: auth-db
+    restart: unless-stopped
+    networks:
+      - togglemaster-net
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-postgres}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
+      POSTGRES_DB: auth_db
+    ports:
+      - "5432:5432"
+    volumes:
+      - ./auth-service/db/init.sql:/docker-entrypoint-initdb.d/init.sql:ro
+      - auth_db_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d auth_db"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  # 2. Banco PostgreSQL multi-database para flags e regras de targeting (flags_db, targeting_db)
+  flags-targeting-db:
+    image: postgres:15.19-alpine
+    container_name: flags-targeting-db
+    restart: unless-stopped
+    networks:
+      - togglemaster-net
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-postgres}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
+      POSTGRES_DB: postgres
+    ports:
+      - "5433:5432"
+    volumes:
+      - ./scripts/local-db/init-flags-targeting.sh:/docker-entrypoint-initdb.d/01-init.sh:ro
+      - ./flag-service/db/init.sql:/docker-entrypoint-initdb.d/flags-schema.sql:ro
+      - ./targeting-service/db/init.sql:/docker-entrypoint-initdb.d/targeting-schema.sql:ro
+      - flags_targeting_db_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d postgres"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  # 3. Cache Redis em memória para baixa latência na avaliação
+  redis:
+    image: redis:7.4.11-alpine
+    container_name: redis
+    restart: unless-stopped
+    networks:
+      - togglemaster-net
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  # 4. Floci (AWS Cloud Emulator - SQS & DynamoDB) https://floci.io/
+  floci:
+    image: floci/floci:2.3.0-compat
+    container_name: floci
+    restart: unless-stopped
+    networks:
+      - togglemaster-net
+    ports:
+      - "4566:4566"
+    environment:
+      AWS_DEFAULT_REGION: us-east-1
+      AWS_ACCESS_KEY_ID: ${LOCAL_AWS_ACCESS_KEY_ID:-mock-local-key}
+      AWS_SECRET_ACCESS_KEY: ${LOCAL_AWS_SECRET_ACCESS_KEY:-mock-local-secret}
+    volumes:
+      - floci_data:/app/data
+      - ./scripts/local-floci/init-aws.sh:/etc/floci/init/ready.d/init-aws.sh:ro
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:4566/_localstack/health || exit 1"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  # ==========================================
+  # CAMADA DE MICROSSERVIÇOS (5 APLICAÇÕES)
+  # ==========================================
+
+  # 5. Serviço de Autenticação e Chaves de API (Go)
+  auth-service:
+    build:
+      context: ./auth-service
+      dockerfile: Dockerfile
+    container_name: auth-service
+    restart: unless-stopped
+    networks:
+      - togglemaster-net
+    depends_on:
+      auth-db:
+        condition: service_healthy
+    environment:
+      PORT: "80"
+      DATABASE_URL: "postgres://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-postgres}@auth-db:5432/auth_db?sslmode=disable"
+      MASTER_KEY: "${MASTER_KEY:-admin-secreto-123}"
+    ports:
+      - "8001:80"
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q --spider http://localhost:80/health || exit 1"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  # 6. Serviço de Gerenciamento de Feature Flags (Python/Flask)
+  flag-service:
+    build:
+      context: ./flag-service
+      dockerfile: Dockerfile
+    container_name: flag-service
+    restart: unless-stopped
+    networks:
+      - togglemaster-net
+    depends_on:
+      flags-targeting-db:
+        condition: service_healthy
+      auth-service:
+        condition: service_healthy
+    environment:
+      PORT: "80"
+      DATABASE_URL: "postgres://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-postgres}@flags-targeting-db:5432/flags_db?sslmode=disable"
+      AUTH_SERVICE_URL: "http://auth-service:80"
+    ports:
+      - "8002:80"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:80/health"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  # 7. Serviço de Regras de Segmentação (Python/Flask)
+  targeting-service:
+    build:
+      context: ./targeting-service
+      dockerfile: Dockerfile
+    container_name: targeting-service
+    restart: unless-stopped
+    networks:
+      - togglemaster-net
+    depends_on:
+      flags-targeting-db:
+        condition: service_healthy
+      auth-service:
+        condition: service_healthy
+    environment:
+      PORT: "80"
+      DATABASE_URL: "postgres://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-postgres}@flags-targeting-db:5432/targeting_db?sslmode=disable"
+      AUTH_SERVICE_URL: "http://auth-service:80"
+    ports:
+      - "8003:80"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:80/health"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  # 8. Serviço de Avaliação / Hot Path (Go)
+  evaluation-service:
+    build:
+      context: ./evaluation-service
+      dockerfile: Dockerfile
+    container_name: evaluation-service
+    restart: unless-stopped
+    networks:
+      - togglemaster-net
+    depends_on:
+      redis:
+        condition: service_healthy
+      flag-service:
+        condition: service_healthy
+      targeting-service:
+        condition: service_healthy
+      floci:
+        condition: service_healthy
+    environment:
+      PORT: "80"
+      REDIS_URL: "redis://redis:6379"
+      FLAG_SERVICE_URL: "http://flag-service:80"
+      TARGETING_SERVICE_URL: "http://targeting-service:80"
+      SERVICE_API_KEY: "${SERVICE_API_KEY:-tm_eval_service_key_secret_123}"
+      AWS_REGION: "us-east-1"
+      AWS_SQS_URL: "http://floci:4566/000000000000/ToggleMaster-EvaluationEvents"
+      AWS_ENDPOINT_URL: "http://floci:4566"
+      AWS_ACCESS_KEY_ID: "${LOCAL_AWS_ACCESS_KEY_ID:-mock-local-key}"
+      AWS_SECRET_ACCESS_KEY: "${LOCAL_AWS_SECRET_ACCESS_KEY:-mock-local-secret}"
+    ports:
+      - "8004:80"
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q --spider http://localhost:80/health || exit 1"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  # 9. Serviço de Analytics e Processamento Assíncrono (Python/Worker)
+  analytics-service:
+    build:
+      context: ./analytics-service
+      dockerfile: Dockerfile
+    container_name: analytics-service
+    restart: unless-stopped
+    networks:
+      - togglemaster-net
+    depends_on:
+      floci:
+        condition: service_healthy
+    environment:
+      PORT: "80"
+      AWS_REGION: "us-east-1"
+      AWS_SQS_URL: "http://floci:4566/000000000000/ToggleMaster-EvaluationEvents"
+      AWS_DYNAMODB_TABLE: "ToggleMasterAnalytics"
+      AWS_ACCESS_KEY_ID: "${LOCAL_AWS_ACCESS_KEY_ID:-mock-local-key}"
+      AWS_SECRET_ACCESS_KEY: "${LOCAL_AWS_SECRET_ACCESS_KEY:-mock-local-secret}"
+      AWS_ENDPOINT_URL: "http://floci:4566"
+      DYNAMODB_ENDPOINT_URL: "http://floci:4566"
+      SQS_ENDPOINT_URL: "http://floci:4566"
+    ports:
+      - "8005:80"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:80/health"]
+      interval: 5s
+      timeout: 5s
+      retries: 5

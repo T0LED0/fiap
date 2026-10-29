@@ -1,0 +1,6 @@
+# Hadolint Configuration for ToggleMaster
+# Reference: https://github.com/hadolint/hadolint
+
+ignored:
+  - DL3008  # Pin versions in apt get install (Debian mirrors remove old point release packages)
+  - DL3018  # Pin versions in apk add (Alpine mirrors deprecate minor patch packages quickly)

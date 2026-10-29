@@ -1,0 +1,47 @@
+# Sistemas Operacionais
+.DS_Store
+Thumbs.db
+
+# Ambientes Virtuais e Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+.venv/
+/.venv/
+/venv/
+/env/
+app/*/.venv/
+app/*/venv/
+app/*/env/
+*.egg-info/
+.pytest_cache/
+
+# Go
+**/server
+*.exe
+*.test
+*.prof
+
+# Segredos, Chaves e Credenciais
+.env
+**/.env
+*.env
+*.env.*
+!*.env.example
+!**/.env.example
+**/.rendered-k8s/
+*.api_env
+.envrc
+**/.envrc
+!**/.envrc_example
+*.pem
+*.key
+*.cert
+
+# IDEs
+.idea/
+.vscode/
+*.swp
+*.swo

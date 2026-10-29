@@ -1,0 +1,46 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+namespace: togglemaster
+
+labels:
+  - pairs:
+      app.kubernetes.io/part-of: togglemaster
+      app.kubernetes.io/managed-by: kustomize
+    includeSelectors: false
+
+resources:
+  - 00-namespace.yaml
+  - 01-secrets.yaml
+  - 02-configmaps.yaml
+  - 03-db-init-job.yaml
+  - auth-service/deployment.yaml
+  - auth-service/service.yaml
+  - flag-service/deployment.yaml
+  - flag-service/service.yaml
+  - targeting-service/deployment.yaml
+  - targeting-service/service.yaml
+  - evaluation-service/deployment.yaml
+  - evaluation-service/service.yaml
+  - analytics-service/deployment.yaml
+  - analytics-service/service.yaml
+  - 97-keda-scaledobject.yaml
+  - 98-hpa.yaml
+  - 99-ingress.yaml
+
+images:
+  - name: togglemaster/auth-service
+    newName: 000000000000.dkr.ecr.us-east-2.amazonaws.com/togglemaster/auth-service
+    newTag: "1.0.0"
+  - name: togglemaster/flag-service
+    newName: 000000000000.dkr.ecr.us-east-2.amazonaws.com/togglemaster/flag-service
+    newTag: "1.0.0"
+  - name: togglemaster/targeting-service
+    newName: 000000000000.dkr.ecr.us-east-2.amazonaws.com/togglemaster/targeting-service
+    newTag: "1.0.0"
+  - name: togglemaster/evaluation-service
+    newName: 000000000000.dkr.ecr.us-east-2.amazonaws.com/togglemaster/evaluation-service
+    newTag: "1.0.0"
+  - name: togglemaster/analytics-service
+    newName: 000000000000.dkr.ecr.us-east-2.amazonaws.com/togglemaster/analytics-service
+    newTag: "1.0.0"

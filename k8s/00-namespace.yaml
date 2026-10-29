@@ -1,0 +1,15 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: togglemaster
+  labels:
+    name: togglemaster
+    app.kubernetes.io/part-of: togglemaster
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: togglemaster-sa
+  namespace: togglemaster
+  annotations:
+    eks.amazonaws.com/role-arn: arn:aws:iam::000000000000:role/togglemaster-workload-irsa-role
