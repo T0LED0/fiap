@@ -250,11 +250,11 @@ O projeto disponibiliza **scripts de auditoria automatizada** para validar a con
 
 ## 👥 Integrantes do Grupo
 
-| Nome do Aluno                     |     RM     | Google Skill Badge                                                             |
-| :-------------------------------- | :--------: | :----------------------------------------------------------------------------- |
-| Kayky Santos da Cunha Couto       |            | https://www.skills.google/public_profiles/01c320b7-257c-4aff-a654-0b39b2758c63 |
-| Lúcio Alves Toledo                |  rm375870  | https://www.skills.google/public_profiles/f6d7f1e2-4237-4277-b1ab-9f595b94ea0a |
-| Bruno Alexandre Manoel de Freitas | _RM123456_ | `@usuario_3`                                                                   |
-| Beatriz da Silva Castro           | _RM123456_ | `@usuario_4`                                                                   |
+| Nome do Aluno                     |    RM    | Google Skill Badge                                                             |
+| :-------------------------------- | :------: | :----------------------------------------------------------------------------- |
+| Kayky Santos da Cunha Couto       | rm376244 | https://www.skills.google/public_profiles/01c320b7-257c-4aff-a654-0b39b2758c63 |
+| Lúcio Alves Toledo                | rm375870 | https://www.skills.google/public_profiles/f6d7f1e2-4237-4277-b1ab-9f595b94ea0a |
+| Bruno Alexandre Manoel de Freitas |          |                                                                                |
+| Beatriz da Silva Castro           |          |                                                                                |
 
 ---
