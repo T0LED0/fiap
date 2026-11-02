@@ -5,6 +5,17 @@
 
 ---
 
+## 👥 Integrantes do Grupo
+
+| Nome do Aluno                     |    RM    | Google Skill Badge                                                             |
+| :-------------------------------- | :------: | :----------------------------------------------------------------------------- |
+| Kayky Santos da Cunha Couto       | rm376244 | https://www.skills.google/public_profiles/01c320b7-257c-4aff-a654-0b39b2758c63 |
+| Lúcio Alves Toledo                | rm375870 | https://www.skills.google/public_profiles/f6d7f1e2-4237-4277-b1ab-9f595b94ea0a |
+| Bruno Alexandre Manoel de Freitas |          |                                                                                |
+| Beatriz da Silva Castro           |          |                                                                                |
+
+---
+
 ## 📖 Sobre o Projeto
 
 O **ToggleMaster** é uma plataforma corporativa de gerenciamento de **Feature Flags** de alta performance e resiliência.
@@ -245,16 +256,5 @@ O projeto disponibiliza **scripts de auditoria automatizada** para validar a con
 | ☁️ **Cloud & Infrastructure Lead**   | Provisionamento dos repositórios ECR, bancos RDS PostgreSQL, cluster ElastiCache Redis, fila SQS, tabela DynamoDB e roles de acesso.                         |
 | ☸️ **Kubernetes & Networking Lead**  | Deploy do cluster EKS, Node Groups, Traefik Controller v3 (Gateway API + Ingress), Metrics Server e manifestos (Deployments, Services, ConfigMaps, Secrets). |
 | ⚡ **SRE, Escalabilidade & QA Lead** | Configuração do HPA e KEDA, execução dos testes de carga (`hey`), validação de telemetria no DynamoDB e condução da gravação do vídeo.                       |
-
----
-
-## 👥 Integrantes do Grupo
-
-| Nome do Aluno                     |    RM    | Google Skill Badge                                                             |
-| :-------------------------------- | :------: | :----------------------------------------------------------------------------- |
-| Kayky Santos da Cunha Couto       | rm376244 | https://www.skills.google/public_profiles/01c320b7-257c-4aff-a654-0b39b2758c63 |
-| Lúcio Alves Toledo                | rm375870 | https://www.skills.google/public_profiles/f6d7f1e2-4237-4277-b1ab-9f595b94ea0a |
-| Bruno Alexandre Manoel de Freitas |          |                                                                                |
-| Beatriz da Silva Castro           |          |                                                                                |
 
 ---
